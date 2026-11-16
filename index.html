@@ -70,6 +70,7 @@ input[type=text]:focus{outline:2px solid var(--or);outline-offset:1px}
 .sigtop{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .sigtop h2{margin:6px 0}
 .worth{font:700 15px var(--ui);color:#1a0830;background:linear-gradient(90deg,var(--or),var(--pur));border-radius:99px;padding:6px 14px;white-space:nowrap}
+.ghost.skip{min-height:36px;padding:6px 12px;font-size:14px}
 .clues{list-style:none;padding:0;margin:0 0 14px;display:grid;gap:8px}
 .clues li{background:#0d1020;border:1px solid var(--line);border-radius:12px;padding:10px 14px;display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:baseline}
 .clues li b{font:700 14px var(--disp);color:var(--or)}
@@ -183,7 +184,7 @@ details p,details li{color:var(--mute);font-size:15px}
     <summary>How scoring works</summary>
     <ul>
       <li><b>Liftoff (0–1,000):</b> up to 750 for reaching the day's par number of answers, plus 50 for each answer nobody else in the crew gave (max 5). It keeps updating as the rest of the crew plays, so check back later.</li>
-      <li><b>Signal Lock (0–1,000):</b> a satellite downlinks a new clue about the mystery thing every orbit (9 seconds). Solve it on clue 1 for 1,000, then 800, 600, 400 or 250. Each wrong guess costs 75. One extra orbit after clue 5, then the signal is lost and you score 0.</li>
+      <li><b>Signal Lock (0–1,000):</b> a satellite downlinks a new clue about the mystery thing every orbit (20 seconds), or sooner if you skip ahead. Solve it on clue 1 for 1,000, then 800, 600, 400 or 250. Each wrong guess costs 75. One extra orbit after clue 5, then the signal is lost and you score 0.</li>
       <li><b>Landing (0–1,000):</b> three estimates worth up to 333 each. Exact is full points, 2× off keeps about 70%, and 10× off scores zero. Too high is redshifted, too low is blueshifted.</li>
       <li><b>Season:</b> daily totals add up into a race from Earth to Pluto (60,000 points). A new season starts every month.</li>
     </ul>
@@ -197,7 +198,7 @@ details p,details li{color:var(--mute);font-size:15px}
 /* ---------------- config ---------------- */
 const CONFIG = { url: "https://ofkmcqttplwiivprnwle.supabase.co", key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ma21jcXR0cGx3aWl2cHJud2xlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4NTkyOTksImV4cCI6MjExMDQzNTI5OX0.E7VTTDfSQkuyeAdW_acyPmTeB4WweLea2PkFhbPphoY" };
 const LAUNCH = Date.UTC(2026,10,16), PLUTO = 60000;
-const ORBIT = 9000, SIGPTS = [1000,800,600,400,250], WRONG = 75;
+const ORBIT = 20000, SIGPTS = [1000,800,600,400,250], WRONG = 75;
 
 /* ---------------- helpers ---------------- */
 const $ = id => document.getElementById(id);
@@ -408,7 +409,7 @@ const cluesShown = t => Math.min(5, Math.floor(t/ORBIT)+1);
 function renderSig(P,rows,me){
   const D=M.signal, s=P.sig, kick=`<p class="kicker">Stage 2 · Signal Lock</p>`;
   if(!s.started) return kick+`<h2>Incoming transmission</h2>
-    <p class="lead">A satellite is relaying clues about today's mystery ${esc(D.type.toLowerCase())}. Each orbit downlinks a new clue, from hardest to easiest. Lock in the answer early for more points: 1,000 on clue 1, down to 250 on clue 5. Wrong guesses cost 75 each. After the fifth clue you get one last orbit before the signal drops.</p>
+    <p class="lead">A satellite is relaying clues about today's mystery ${esc(D.type.toLowerCase())}. Each orbit (20 seconds) downlinks a new clue, from hardest to easiest, or skip ahead whenever you want the next one. Lock in the answer early for more points: 1,000 on clue 1, down to 250 on clue 5. Wrong guesses cost 75 each. After the fifth clue you get one last orbit before the signal drops.</p>
     ${ORBSVG}<button class="btn" data-act="sigStart">Acquire signal</button>`;
   if(!s.done){
     const t=sigElapsed(P), k=cluesShown(t);
@@ -416,7 +417,7 @@ function renderSig(P,rows,me){
       + (k<5?`<li class="lock"><b>${k+1}</b><span>Next clue arrives on the next pass</span></li>`:"");
     return kick+`<div class="sigtop"><h2>Mystery ${esc(D.type.toLowerCase())}</h2><span class="worth">Worth ${nf(Math.max(0,SIGPTS[k-1]-WRONG*s.wrong.length))}</span></div>
       ${ORBSVG}
-      <div class="row" style="justify-content:space-between;margin:-4px 0 12px"><span class="unit" id="sigClock">${k<5?"Next clue in":"Signal lost in"} …</span><span class="unit">Clue ${k} of 5</span></div>
+      <div class="row" style="justify-content:space-between;margin:-4px 0 12px"><span class="unit" id="sigClock">${k<5?"Next clue in":"Signal lost in"} …</span><span class="row" style="gap:12px"><span class="unit">Clue ${k} of 5</span>${k<5?`<button class="ghost skip" data-act="sigSkip">Skip to clue ${k+1}</button>`:""}</span></div>
       <ol class="clues">${list}</ol>
       <form class="guess" id="sigForm"><input type="text" id="sigIn" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Your answer"><button class="btn" type="submit">Lock signal</button></form>
       <div class="say ${T.msgCls}">${esc(T.msg)}</div>
@@ -556,6 +557,7 @@ document.addEventListener("click",e=>{
   const P=play();
   if(a==="ignite") ignite();
   if(a==="toNav"){ P.lift.ack=true; T.liftMsg=""; saveProg(); render(); window.scrollTo({top:0}); }
+  if(a==="sigSkip" && P.sig.started && !P.sig.done){ const t=sigElapsed(P); if(cluesShown(t)<5){ P.sig.start-=(ORBIT-(t%ORBIT))+50; saveProg(); render(); } return; }
   if(a==="sigStart"){ P.sig.started=true; P.sig.start=Date.now(); T.msg=""; saveProg(); render(); const g=$("sigIn"); if(g) g.focus({preventScroll:true}); }
   if(a==="toLand"){ P.sig.ack=true; T.msg=""; saveProg(); render(); window.scrollTo({top:0}); }
   if(a==="nextQ"){ P.land.seen++; saveProg(); if(P.land.seen>=3) submit("land",{guesses:P.land.guesses,score:landScore(M.landing,P.land.guesses)}); render(); window.scrollTo({top:0,behavior:"smooth"}); }
