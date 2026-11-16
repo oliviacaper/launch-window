@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Launch Window</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+/* VOICE occasion: a nightly launch with friends, playful but tidy
+   IDEA a flight console: one mission a day, three burns, a mission readout you paste to the crew
+   PICTURE the live stage itself: fuel timer, star field to connect, redshift spectrum
+   COLOUR fixed nebula palette: deep violet ground, pale lilac ink, hot pink lead, purple support, sky blue, mint for on-target
+   TYPE Unbounded display + DM Sans text
+   LAYOUT one 780px column: header + stage track, live stage card, crew board; same order on a phone */
+:root{color-scheme:dark;--bg:#0d0920;--panel:#170f33;--panel2:#211645;--line:#3a2b6b;--ink:#f4effd;--mute:#b4a9d6;--or:#ff5fb8;--pur:#a87bff;--red:#ff4f7e;--blue:#5aa9ff;--grn:#6ef0c4;--star:#ffd9f2;--disp:"Unbounded",sans-serif;--ui:"DM Sans",system-ui,sans-serif}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:radial-gradient(900px 600px at 88% -8%,rgba(120,50,170,.5),transparent 70%) fixed,radial-gradient(800px 600px at -5% 105%,rgba(40,80,180,.35),transparent 70%) fixed,var(--bg);color:var(--ink);font:16px/1.55 var(--ui);overflow-x:clip;min-height:100vh}
+#sky{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.9}
+.wrap{position:relative;z-index:1;max-width:780px;margin:0 auto;padding:20px max(16px,4vw) 48px}
+h1,h2,h3,.disp{font-family:var(--disp);font-weight:600;letter-spacing:-.02em;line-height:1.05;margin:0}
+button{font:inherit;color:inherit}
+a{color:var(--star)}
+.top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.patchBtn{background:none;border:0;padding:0;margin:0;cursor:pointer;border-radius:50%;flex:none;line-height:0}
+.patchBtn:focus-visible{outline:2px solid var(--star);outline-offset:3px}
+.patch{width:58px;height:58px;overflow:visible;transition:transform .3s}
+.patchBtn:hover .patch{transform:rotate(-8deg) scale(1.05)}
+#ping{transform-box:fill-box;transform-origin:center}
+#ping.go{animation:ping .9s ease-out}
+@keyframes ping{from{transform:scale(.4);opacity:.9}to{transform:scale(2.4);opacity:0}}
+.brand{flex:1 1 220px}
+.brand h1{font-size:clamp(26px,5.4vw,38px);font-weight:700;background:linear-gradient(90deg,#ff8fd0,#c3a1ff 55%,#8cc4ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand p{margin:4px 0 0;color:var(--mute);font-size:15px}
+input[type=text]{font:16px var(--ui);color:var(--ink);background:#0d1020;border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px}
+input[type=text]:focus{outline:2px solid var(--or);outline-offset:1px}
+.track{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:22px 0 14px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;position:relative}
+.step b{display:block;font:600 15px var(--ui)}
+.step span{font-size:13px;color:var(--mute)}
+.step.now{border-color:var(--or);box-shadow:0 0 0 1px var(--or) inset,0 0 18px rgba(255,95,184,.25)}
+.step.done b::after{content:" ✓";color:var(--grn)}
+.card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:18px;padding:clamp(18px,4vw,30px)}
+.kicker{font:600 14px var(--ui);color:var(--or)}
+.card h2{font-size:clamp(24px,4.6vw,34px);margin:6px 0 10px}
+.lead{color:var(--mute);margin:0 0 18px;max-width:60ch}
+.btn{background:linear-gradient(90deg,var(--or),var(--pur));color:#1a0830;border:0;border-radius:12px;padding:12px 22px;min-height:46px;font:700 16px var(--ui);cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn:focus-visible,.ghost:focus-visible,.tab:focus-visible{outline:2px solid var(--star);outline-offset:2px}
+.ghost{background:transparent;border:1px solid var(--line);border-radius:12px;padding:10px 16px;min-height:44px;cursor:pointer;color:var(--ink)}
+.ghost:hover{border-color:var(--mute)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.big{font:700 clamp(36px,8vw,56px)/1 var(--disp)}
+.cat{font:700 clamp(24px,5.4vw,38px)/1.1 var(--disp);margin:4px 0 14px}
+.gauge{height:12px;border-radius:99px;background:#0d1020;border:1px solid var(--line);overflow:hidden}
+.gauge i{display:block;height:100%;background:linear-gradient(90deg,var(--or),var(--pur),var(--blue));transition:width .25s}
+.hud{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 16px;align-items:center;margin:0 0 16px}
+.hud .lbl{font-size:13px;color:var(--mute)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.chip{background:#0d1020;border:1px solid var(--line);border-radius:99px;padding:4px 11px;font-size:14px}
+.chip.solo{border-color:var(--star);color:var(--star)}
+.chip.miss{color:var(--mute);border-style:dashed}
+.say{min-height:24px;font-size:14px;margin-top:8px;color:var(--mute)}
+.say.bad{color:var(--red)}.say.good{color:var(--grn)}
+.score{display:flex;align-items:baseline;gap:10px;margin:14px 0}
+.score small{color:var(--mute);font-size:14px}
+.orb{width:100%;height:auto;display:block;border-radius:14px;background:radial-gradient(ellipse at 50% 0%,#3a1f63,#120b2c 75%);border:1px solid var(--line);margin:6px 0 14px}
+.sigtop{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.sigtop h2{margin:6px 0}
+.worth{font:700 15px var(--ui);color:#1a0830;background:linear-gradient(90deg,var(--or),var(--pur));border-radius:99px;padding:6px 14px;white-space:nowrap}
+.clues{list-style:none;padding:0;margin:0 0 14px;display:grid;gap:8px}
+.clues li{background:#0d1020;border:1px solid var(--line);border-radius:12px;padding:10px 14px;display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:baseline}
+.clues li b{font:700 14px var(--disp);color:var(--or)}
+.clues li.new{border-color:var(--or);box-shadow:0 0 16px rgba(255,95,184,.22)}
+.clues li.lock{color:var(--mute);border-style:dashed}
+.q{font:600 clamp(19px,3.8vw,25px)/1.3 var(--disp);margin:6px 0 16px;text-wrap:balance}
+.guess{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.guess input{flex:1 1 200px}
+.unit{color:var(--mute);font-size:15px}
+.preview{font-size:14px;color:var(--mute);min-height:22px;margin-top:6px}
+.spec{position:relative;height:16px;border-radius:99px;background:linear-gradient(90deg,var(--blue),#9cc8ff 32%,var(--grn) 50%,#ff9fcf 68%,var(--red));margin:44px 0 8px}
+.mk{position:absolute;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--bg)}
+.mk.me{width:22px;height:22px;background:var(--ink);box-shadow:0 0 0 3px var(--bg),0 0 14px #fff}
+.mk span{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);font:600 13px var(--ui);white-space:nowrap;color:var(--ink)}
+.mk:not(.me) span{bottom:auto;top:18px;color:var(--mute)}
+.mk.me{z-index:2}
+.mk.me span{bottom:28px;color:#fff}
+.ends{display:flex;justify-content:space-between;font-size:13px;color:var(--mute)}
+.reveal{background:#0d1020;border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:14px}
+.verdict{font:700 19px var(--disp)}
+.red{color:var(--red)}.blue{color:var(--blue)}.grn{color:var(--grn)}
+.crew{font-size:14px;color:var(--mute);margin:8px 0 0}
+.src{font-size:14px;color:var(--mute);margin:8px 0 0}
+.totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:16px 0}
+.totals div{background:#0d1020;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.totals b{display:block;font:700 22px var(--disp)}
+.totals span{font-size:13px;color:var(--mute)}
+pre.share{background:#0d1020;border:1px solid var(--line);border-radius:12px;padding:14px;font:15px/1.6 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:0 0 10px;overflow-x:auto}
+.board{margin-top:22px}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tab{background:transparent;border:1px solid var(--line);border-radius:99px;padding:8px 16px;min-height:40px;cursor:pointer;color:var(--mute);font:600 15px var(--ui)}
+.tab.on{background:linear-gradient(90deg,var(--or),var(--pur));color:#1a0830;border-color:transparent}
+.tbl{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font:600 13px var(--ui);color:var(--mute)}
+th:first-child,td:first-child{text-align:left}
+td{font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+tr.me td{color:var(--or);font-weight:700}
+td.tot{font-weight:700}
+.note{font-size:13px;color:var(--mute);margin:8px 2px 0}
+.race{position:relative;height:150px;margin:6px 0 0;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.race .ln{position:absolute;left:6%;right:6%;top:96px;height:2px;background:var(--line)}
+.pl{position:absolute;top:96px;transform:translate(-50%,-50%);text-align:center}
+.pl i{display:block;border-radius:50%;margin:0 auto}
+.pl span{position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:13px;color:var(--mute);white-space:nowrap}
+.ship{position:absolute;transform:translateX(-50%);font:600 13px var(--ui);white-space:nowrap;text-align:center}
+.ship::after{content:"";display:block;width:2px;height:10px;margin:2px auto 0;background:currentColor}
+details{margin-top:18px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+summary{cursor:pointer;font:600 15px var(--ui)}
+details p,details li{color:var(--mute);font-size:15px}
+[hidden]{display:none!important}
+.who{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 12px;min-height:44px;cursor:pointer;color:var(--ink);text-align:left;display:flex;flex-direction:column;justify-content:center;font:14px var(--ui)}
+.who b{font-weight:700}
+.who span{font-size:13px;color:var(--mute)}
+.who:hover{border-color:var(--or)}
+.joinf{display:grid;gap:8px;max-width:420px}
+.joinf label{font:600 14px var(--ui);color:var(--mute);margin-top:6px}
+.joinf .btn{margin-top:12px;justify-self:start}
+@media(max-width:560px){.who{width:100%}.track .step span{display:none}}
+@media(prefers-reduced-motion:reduce){.gauge i{transition:none}}
+</style>
+</head>
+<body>
+<svg id="sky" aria-hidden="true"></svg>
+<div class="wrap">
+  <header class="top">
+    <button class="patchBtn" id="logoBtn" aria-label="Launch the satellite into orbit" title="Click me">
+    <svg class="patch" viewBox="0 0 64 64" aria-hidden="true">
+      <defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5fb8"/><stop offset=".5" stop-color="#a87bff"/><stop offset="1" stop-color="#5aa9ff"/></linearGradient>
+      <radialGradient id="planetG" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffb3e0"/><stop offset=".5" stop-color="#a87bff"/><stop offset="1" stop-color="#3b3fb0"/></radialGradient></defs>
+      <circle cx="32" cy="32" r="30" fill="#170f33" stroke="url(#pg)" stroke-width="3"/>
+      <ellipse cx="32" cy="32" rx="25" ry="9" fill="none" stroke="#a87bff" stroke-width="1.5" stroke-dasharray="3 3" transform="rotate(-25 32 32)"/>
+      <circle id="ping" cx="32" cy="32" r="14" fill="none" stroke="#ff5fb8" stroke-width="2" opacity="0"/>
+      <g id="planet" opacity="0"><circle cx="32" cy="32" r="10" fill="url(#planetG)"/><path d="M24 29c5 2 11 2 16-1M23.5 35c6 2 12 1.5 17-1.5" stroke="#ffd9f2" stroke-opacity=".45" stroke-width="1.2" fill="none"/></g>
+      <g id="sat" transform="translate(32 32)"><g transform="rotate(-25)"><g transform="translate(-32 -32)">
+        <rect x="7" y="27.5" width="15" height="9" rx="1" fill="#5aa9ff"/>
+        <path d="M12 27.5v9M17 27.5v9M7 32h15" stroke="#170f33" stroke-width="1"/>
+        <rect x="42" y="27.5" width="15" height="9" rx="1" fill="#5aa9ff"/>
+        <path d="M47 27.5v9M52 27.5v9M42 32h15" stroke="#170f33" stroke-width="1"/>
+        <path d="M22 32h4M38 32h4" stroke="#d9cfff" stroke-width="2"/>
+        <rect x="26" y="25" width="12" height="14" rx="2.5" fill="#ff5fb8"/>
+        <rect x="28.5" y="28" width="7" height="3" rx="1" fill="#ffd9f2"/>
+        <path d="M32 25v-5" stroke="#d9cfff" stroke-width="1.6"/>
+        <path d="M26.5 17.5a5.5 5.5 0 0 0 11 0z" fill="#d9cfff"/>
+        <circle cx="32" cy="15" r="1.6" fill="#ff5fb8"/>
+      </g></g></g>
+      <circle cx="52" cy="14" r="1.4" fill="#ffd9f2"/><circle cx="13" cy="50" r="1.1" fill="#ffd9f2"/>
+    </svg></button>
+    <div class="brand">
+      <h1>Launch Window</h1>
+      <p id="sub">Mission #1</p>
+    </div>
+    <button class="who" id="who" data-act="switch" hidden></button>
+  </header>
+
+  <nav class="track" id="track" aria-label="Mission stages"></nav>
+  <main class="card" id="stage" aria-live="polite"></main>
+
+  <section class="board" id="boardSec" aria-label="Crew board">
+    <div class="tabs" role="tablist">
+      <button class="tab on" id="tab-today" role="tab" data-tab="today">Today</button>
+      <button class="tab" id="tab-season" role="tab" data-tab="season">Season race</button>
+    </div>
+    <div id="boardBody"></div>
+    <p class="note" id="boardNote"></p>
+  </section>
+
+  <details>
+    <summary>How scoring works</summary>
+    <ul>
+      <li><b>Liftoff (0–1,000):</b> up to 750 for reaching the day's par number of answers, plus 50 for each answer nobody else in the crew gave (max 5). It keeps updating as the rest of the crew plays, so check back later.</li>
+      <li><b>Signal Lock (0–1,000):</b> a satellite downlinks a new clue about the mystery thing every orbit (9 seconds). Solve it on clue 1 for 1,000, then 800, 600, 400 or 250. Each wrong guess costs 75. One extra orbit after clue 5, then the signal is lost and you score 0.</li>
+      <li><b>Landing (0–1,000):</b> three estimates worth up to 333 each. Exact is full points, 2× off keeps about 70%, and 10× off scores zero. Too high is redshifted, too low is blueshifted.</li>
+      <li><b>Season:</b> daily totals add up into a race from Earth to Pluto (60,000 points). A new season starts every month.</li>
+    </ul>
+  </details>
+
+</div>
+
+
+<script>
+{
+/* ---------------- config ---------------- */
+const CONFIG = { url: "__SUPABASE_URL__", key: "__SUPABASE_ANON_KEY__" };
+const LAUNCH = Date.UTC(2026,10,16), PLUTO = 60000;
+const ORBIT = 9000, SIGPTS = [1000,800,600,400,250], WRONG = 75;
+
+/* ---------------- helpers ---------------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm = s => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/&/g,"and").replace(/[^a-z0-9]/g,"");
+function nyToday(){ return new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()); }
+function numOf(day){ const p=day.split("-").map(Number); return Math.round((Date.UTC(p[0],p[1]-1,p[2])-LAUNCH)/864e5)+1; }
+function dayOf(n){ return new Date(LAUNCH+(n-1)*864e5).toISOString().slice(0,10); }
+function pretty(day){ const p=day.split("-").map(Number); return new Date(Date.UTC(p[0],p[1]-1,p[2])).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",timeZone:"UTC"}); }
+function rng(seed){ let h=2166136261; for(const ch of String(seed)) h=Math.imul(h^ch.charCodeAt(0),16777619); return ()=>{ h+=0x6D2B79F5; let t=h; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }; }
+function buildList(str){
+  const canon=[], map=new Map();
+  String(str).split(",").forEach(e=>{
+    const al=e.split("/").map(x=>x.trim()).filter(Boolean); if(!al.length) return;
+    const c=al[0]; if(map.has(norm(c))) return;
+    canon.push(c); al.forEach(a=>{ [a, /^the\s/i.test(a)?a.slice(4):""].forEach(v=>{ const k=norm(v); if(k && !map.has(k)) map.set(k,c); }); });
+  });
+  return {canon, map, keys:[...map.keys()]};
+}
+function lev(a,b){
+  if(Math.abs(a.length-b.length)>2) return 9;
+  let prev=Array.from({length:b.length+1},(_,j)=>j);
+  for(let i=1;i<=a.length;i++){ const cur=[i]; for(let j=1;j<=b.length;j++) cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1)); prev=cur; }
+  return prev[b.length];
+}
+function match(L,input){
+  const k=norm(input); if(!k) return null;
+  const tries=[k]; if(k.startsWith("the") && k.length>6) tries.push(k.slice(3)); if(k.endsWith("es")) tries.push(k.slice(0,-2)); if(k.endsWith("s")) tries.push(k.slice(0,-1)); tries.push(k+"s");
+  for(const t of tries) if(L.map.has(t)) return L.map.get(t);
+  const tol = k.length>=8?2:k.length>=5?1:0; if(!tol) return null;
+  let best=null,bd=9,tie=false;
+  for(const key of L.keys){ const d=lev(k,key); if(d<bd){bd=d;best=key;tie=false;} else if(d===bd && L.map.get(key)!==L.map.get(best)) tie=true; }
+  return (bd<=tol && !tie) ? L.map.get(best) : null;
+}
+function parseNum(s){
+  s=String(s).toLowerCase().replace(/,/g,"").replace(/\s*[x×*]\s*10\s*\^\s*/,"e").replace(/\s+/g," ").trim();
+  const m=s.match(/^([0-9]*\.?[0-9]+)(?:e([+-]?\d+))?\s*(k|thousand|m|mil|million|b|bn|billion|t|tn|trillion|quadrillion|quintillion)?$/);
+  if(!m) return NaN;
+  const mult={k:1e3,thousand:1e3,m:1e6,mil:1e6,million:1e6,b:1e9,bn:1e9,billion:1e9,t:1e12,tn:1e12,trillion:1e12,quadrillion:1e15,quintillion:1e18};
+  let v=parseFloat(m[1]); if(m[2]) v*=10**(+m[2]); if(m[3]) v*=mult[m[3]];
+  return v;
+}
+function fmt(v){
+  if(!isFinite(v)) return "—";
+  if(v>=1e15){ const e=Math.floor(Math.log10(v)); return (v/10**e).toFixed(2).replace(/\.?0+$/,"")+" × 10<sup>"+e+"</sup>"; }
+  if(v>=100) return Math.round(v).toLocaleString("en-US");
+  return (+v.toPrecision(3)).toLocaleString("en-US");
+}
+const nf = v => Math.round(v||0).toLocaleString("en-US");
+const liftScore = (n,u,par) => Math.round(750*Math.min(n,par)/par + 50*Math.min(u,5));
+const sigScore = (k,w) => k==null?0:Math.max(0,SIGPTS[k]-WRONG*w);
+const err = (g,a) => Math.log10(g/a);
+const qPts = (g,a) => (1000/3)*Math.max(0,1-Math.abs(err(g,a)));
+const landScore = (qs,gs) => Math.round(gs.reduce((s,g,i)=>s+qPts(g,qs[i].a),0));
+const sq = (g,a) => { const e=err(g,a); return Math.abs(e)<=Math.log10(1.25)?"🟩":e>0?"🟥":"🟦"; };
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)));
+
+/* ---------------- storage ---------------- */
+const load = (k,d) => { try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } };
+const store = (k,v) => { try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
+let ID = load("lw:id", {crew:"", name:"", token:""});
+let PROG = load("lw:prog", {});
+let PENDING = load("lw:pending", []);
+if(!ID.token){ ID.token=uuid(); store("lw:id",ID); }
+const fromHash = decodeURIComponent((location.hash||"").slice(1)).trim().toLowerCase();
+if(fromHash && fromHash.length>=3 && fromHash!==ID.crew){ ID.crew=fromHash; store("lw:id",ID); }
+
+/* ---------------- api ---------------- */
+async function api(path, opts={}){
+  const r = await fetch(CONFIG.url+path, {...opts, headers:{apikey:CONFIG.key, Authorization:"Bearer "+CONFIG.key, "Content-Type":"application/json", ...(opts.headers||{})}});
+  if(!r.ok) throw new Error(r.status+" "+await r.text());
+  return r.status===204 ? null : r.json();
+}
+const rpc = (fn, body) => api(`/rest/v1/rpc/${fn}`, {method:"POST", body:JSON.stringify(body)});
+const getMission = day => api(`/rest/v1/missions?day=eq.${day}&select=*`).then(r=>r[0]||null);
+
+/* ---------------- state ---------------- */
+let parsFor={}, DAY="", N=0, M=null, LL=null, SL=null, PLAYS=[], tab="today", view="loading", errMsg="";
+let T={msg:"",msgCls:"",timer:null,count:0,liftMsg:"",liftCls:""};
+function play(){
+  if(!PROG[N]) PROG[N]={lift:{answers:[],started:false,done:false,ack:false},sig:{started:false,start:0,wrong:[],solvedAt:null,done:false,lost:false,score:0,ack:false},land:{guesses:[],seen:0}};
+  return PROG[N];
+}
+function saveProg(){ for(const k of Object.keys(PROG)) if(+k<N-3) delete PROG[k]; store("lw:prog",PROG); }
+function stageOf(P){ if(!P.lift.ack) return 0; if(!P.sig.ack) return 1; if(P.land.seen<3) return 2; return 3; }
+function seasonRange(){ const d=DAY.split("-"); return [Math.max(1,numOf(`${d[0]}-${d[1]}-01`)), N]; }
+
+/* ---------------- sync ---------------- */
+async function flush(){
+  const left=[];
+  for(const p of PENDING){
+    if(p.mission!==N){ continue; }
+    try{ await rpc("submit_stage",{p_crew:ID.crew,p_mission:p.mission,p_player:ID.name,p_token:ID.token,p_stage:p.stage,p_data:p.data}); }
+    catch(e){ left.push(p); }
+  }
+  PENDING=left; store("lw:pending",PENDING);
+}
+function submit(stage,data){ PENDING.push({mission:N,stage,data}); store("lw:pending",PENDING); flush().then(refreshPlays).then(()=>render()); }
+async function refreshPlays(){
+  try{ const [a,b]=seasonRange(); PLAYS=await rpc("get_plays",{p_crew:ID.crew,p_from:a,p_to:b});
+    const need=[...new Set(PLAYS.map(p=>p.mission))].filter(m=>!(m in parsFor));
+    if(need.length){ const rows=await api(`/rest/v1/missions?num=in.(${need.join(",")})&select=num,par:liftoff->par`); rows.forEach(r=>parsFor[r.num]=+r.par||12); }
+  }catch(e){}
+}
+function restoreFromServer(){
+  const r=PLAYS.find(p=>p.mission===N && p.player===ID.name); if(!r) return;
+  const P=play();
+  if(r.lift_answers && !P.lift.done){ P.lift={answers:r.lift_answers,started:true,done:true,ack:true}; }
+  if(r.sig_score!=null && !P.sig.done){ Object.assign(P.sig,{started:true,done:true,ack:true,lost:!!r.sig_lost,solvedAt:r.sig_clue,wrong:Array(r.sig_wrong||0).fill("?"),score:r.sig_score}); }
+  if(r.land_score!=null && P.land.seen<3){ P.land={guesses:r.land_guesses||[],seen:3}; }
+  saveProg();
+}
+
+/* ---------------- board ---------------- */
+function scoreRows(rows, n, par){
+  const counts=new Map();
+  rows.forEach(r=>r.lift_answers&&r.lift_answers.forEach(a=>counts.set(a,(counts.get(a)||0)+1)));
+  return rows.map(r=>{
+    const uniq=r.lift_answers?r.lift_answers.filter(a=>counts.get(a)===1):[];
+    const lift=r.lift_answers?liftScore(r.lift_answers.length,uniq.length,par):null;
+    return {...r, uniq, lift, sig:r.sig_score, land:r.land_score, total:(lift||0)+(r.sig_score||0)+(r.land_score||0), me:r.player===ID.name};
+  });
+}
+function board(){
+  const rows=PLAYS.filter(p=>p.mission===N).map(p=>({...p}));
+  const P=play();
+  let me=rows.find(r=>r.player===ID.name);
+  if(!me){ me={player:ID.name,mission:N}; rows.push(me); }
+  if(P.lift.done && !me.lift_answers) me.lift_answers=P.lift.answers;
+  if(P.sig.done && me.sig_score==null){ me.sig_score=P.sig.score; me.sig_clue=P.sig.solvedAt; me.sig_wrong=P.sig.wrong.length; me.sig_lost=P.sig.lost; }
+  if(P.land.seen>=3 && me.land_score==null){ me.land_score=landScore(M.landing,P.land.guesses); me.land_guesses=P.land.guesses; }
+  return scoreRows(rows, N, M.liftoff.par);
+}
+
+/* ---------------- render ---------------- */
+function render(){
+  const who=$("who");
+  $("boardSec").hidden = !(view==="game" || view==="nomission");
+  if(view!=="game" && view!=="nomission"){ who.hidden=true; }
+  else { who.hidden=false; who.innerHTML=`<b>${esc(ID.name)}</b><span>crew ${esc(ID.crew)} · switch</span>`; }
+  if(view==="setup"){ $("sub").textContent="Setup needed"; $("track").innerHTML=""; $("stage").innerHTML=`<h2>Almost ready</h2><p class="lead">This copy of Launch Window isn't connected to its database yet.</p>`; $("boardBody").innerHTML=""; return; }
+  if(view==="join") return renderJoin();
+  if(view==="loading"){ $("stage").innerHTML=`<p class="lead">Contacting mission control…</p>`; return; }
+  if(view==="error"){ $("stage").innerHTML=`<h2>Lost contact</h2><p class="lead">Couldn't reach mission control. Check your connection and refresh.</p><p class="crew">${esc(errMsg)}</p>`; return; }
+  $("sub").textContent=`Mission #${N} · ${pretty(DAY)}`;
+  if(view==="nomission"){ $("track").innerHTML=""; $("stage").innerHTML=`<h2>Still on the launch pad</h2><p class="lead">Today's mission hasn't been loaded yet. Check back a little later.</p>`; renderBoard([]); return; }
+  const P=play(), st=stageOf(P), rows=board(), me=rows.find(r=>r.me);
+  const names=["Liftoff","Signal Lock","Landing"], vals=[me.lift,me.sig,me.land];
+  $("track").innerHTML=names.map((nm,k)=>`<div class="step ${k<st?"done":k===st?"now":""}"><b>${nm}</b><span>${k<st?nf(vals[k])+" pts":k===st?"In progress":"Locked"}</span></div>`).join("");
+  const keepId=$("sigIn")?"sigIn":$("gIn")?"gIn":null, keep=keepId?$(keepId).value:null, hadFocus=keepId&&document.activeElement&&document.activeElement.id===keepId;
+  $("stage").innerHTML=[renderLift,renderSig,renderLand,renderDone][st](P,rows,me);
+  if(keepId && $(keepId)){ $(keepId).value=keep; if(hadFocus) $(keepId).focus({preventScroll:true}); }
+  if(st===1 && P.sig.started && !P.sig.done) startSigLoop(); else stopSigLoop();
+  renderBoard(rows);
+  if(st===0 && T.timer){ const inp=$("liftIn"); if(inp) inp.focus(); }
+  if(st===2){ const g=$("gIn"); if(g && P.land.guesses[P.land.seen]===undefined) g.focus({preventScroll:true}); }
+}
+
+function renderJoin(){
+  $("sub").textContent="Join your crew"; $("track").innerHTML=""; $("boardBody").innerHTML=""; $("boardNote").textContent="";
+  $("stage").innerHTML=`<p class="kicker">Pre-flight check</p><h2>Join your crew</h2>
+    <p class="lead">Your crew code keeps your leaderboard private to your friends. Your callsign is the name they'll see.</p>
+    <form class="joinf" id="joinForm">
+      <label for="crewIn">Crew code</label><input type="text" id="crewIn" maxlength="40" autocomplete="off" autocapitalize="off" value="${esc(ID.crew)}" placeholder="from your invite link">
+      <label for="nameIn">Callsign</label><input type="text" id="nameIn" maxlength="16" autocomplete="off" value="${esc(ID.name)}" placeholder="e.g. Olivia">
+      <button class="btn" type="submit">Board the ship</button>
+    </form><div class="say bad" id="joinSay">${esc(T.msg)}</div>`;
+}
+
+function renderLift(P,rows,me){
+  const D=M.liftoff;
+  if(T.count>0) return `<p class="kicker">Stage 1 · Liftoff</p><h2>Ignition sequence</h2><div class="big">${T.count}</div>`;
+  if(!P.lift.started) return `<p class="kicker">Stage 1 · Liftoff</p><h2>60 seconds of thrust</h2>
+    <p class="lead">You get one category and 60 seconds. Name as many things in it as you can. Every answer adds altitude, and answers nobody else in the crew gave add bonus thrust. Today's par is ${D.par} answers.</p>
+    <button class="btn" data-act="ignite">Ignite</button>`;
+  if(P.lift.done) return `<p class="kicker">Stage 1 · Liftoff</p><h2>Main engine cutoff</h2>
+    <div class="score"><span class="big">${nf(me.lift)}</span><small>liftoff points · ${P.lift.answers.length} of ${D.par} par · ${me.uniq.length} solo so far</small></div>
+    ${liftResult(P,me)}
+    <p class="crew">Solo bonuses keep updating as the rest of the crew plays.</p>
+    <div class="row" style="margin-top:16px"><button class="btn" data-act="toNav">Continue to Signal Lock</button></div>`;
+  const left=Math.max(0,Math.ceil((P.lift.end-Date.now())/1000));
+  const n=P.lift.answers.length, alt=Math.min(1,n/D.par);
+  return `<p class="kicker">Stage 1 · Liftoff</p><div class="cat">${esc(D.cat)}</div>
+    <div class="hud"><span class="lbl">Fuel</span><div class="gauge"><i id="fuelBar" style="width:${left/60*100}%"></i></div>
+    <span class="lbl">Altitude</span><div class="gauge"><i style="width:${alt*100}%"></i></div></div>
+    <div class="row"><span class="big" id="secs">${left}</span><span class="unit">seconds left · ${n} answer${n===1?"":"s"}</span></div>
+    <form class="guess" id="liftForm" style="margin-top:12px"><input type="text" id="liftIn" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type an answer, press Enter"><button class="btn" type="submit">Add</button></form>
+    <div class="say ${T.liftCls}" id="liftSay">${esc(T.liftMsg)}</div>
+    <div class="chips">${P.lift.answers.map(a=>`<span class="chip">${esc(a)}</span>`).join("")}</div>`;
+}
+function liftResult(P,me){
+  const got=new Set(P.lift.answers);
+  const missed=LL.canon.filter(c=>!got.has(c)).slice(0,10);
+  return `<div class="chips">${P.lift.answers.map(a=>`<span class="chip ${me.uniq.includes(a)?"solo":""}">${me.uniq.includes(a)?"★ ":""}${esc(a)}</span>`).join("")||'<span class="chip miss">No answers</span>'}</div>
+    <p class="crew">★ means nobody else in the crew said it. Common ones you didn't get: ${missed.map(esc).join(", ")}.</p>`;
+}
+
+const ORBSVG = `<svg class="orb" viewBox="0 0 400 210" aria-hidden="true">
+  <defs><radialGradient id="pl2" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#ffb3e0"/><stop offset=".45" stop-color="#a87bff"/><stop offset="1" stop-color="#2c2f8f"/></radialGradient></defs>
+  ${Array.from({length:30},(_,k)=>{const r=rng("orb"+k);return `<circle cx="${(r()*400).toFixed(0)}" cy="${(r()*210).toFixed(0)}" r="${(r()*1.2+.4).toFixed(1)}" fill="#fff" opacity="${(.25+r()*.5).toFixed(2)}"/>`;}).join("")}
+  <ellipse cx="200" cy="108" rx="165" ry="56" fill="none" stroke="#a87bff" stroke-opacity=".6" stroke-width="1.5" stroke-dasharray="4 5" transform="rotate(-10 200 108)"/>
+  <line id="beam" x1="200" y1="160" x2="200" y2="150" stroke="#ff5fb8" stroke-width="4" stroke-linecap="round" opacity="0"/>
+  <g id="orbPlanet"><circle cx="200" cy="108" r="44" fill="url(#pl2)"/><path d="M162 98c25 8 52 8 76 -3M160 116c27 9 56 8 80 -4" stroke="#ffd9f2" stroke-opacity=".4" stroke-width="2" fill="none"/></g>
+  <g id="sigSat" transform="translate(200 164)"><g transform="rotate(-10)"><rect x="-24" y="-5" width="15" height="10" rx="1" fill="#5aa9ff"/><rect x="9" y="-5" width="15" height="10" rx="1" fill="#5aa9ff"/><path d="M-19 -5v10M-14 -5v10M14 -5v10M19 -5v10" stroke="#170f33" stroke-width="1"/><path d="M-9 0h3M6 0h3" stroke="#d9cfff" stroke-width="2"/><rect x="-6" y="-8" width="12" height="15" rx="2.5" fill="#ff5fb8"/><path d="M0 -8v-4" stroke="#d9cfff" stroke-width="1.6"/><path d="M-5 -12a5 5 0 0 1 10 0z" fill="#d9cfff"/></g></g>
+</svg>`;
+const sigElapsed = P => P.sig.started ? Date.now()-P.sig.start : 0;
+const cluesShown = t => Math.min(5, Math.floor(t/ORBIT)+1);
+function renderSig(P,rows,me){
+  const D=M.signal, s=P.sig, kick=`<p class="kicker">Stage 2 · Signal Lock</p>`;
+  if(!s.started) return kick+`<h2>Incoming transmission</h2>
+    <p class="lead">A satellite is relaying clues about today's mystery ${esc(D.type.toLowerCase())}. Each orbit downlinks a new clue, from hardest to easiest. Lock in the answer early for more points: 1,000 on clue 1, down to 250 on clue 5. Wrong guesses cost 75 each. After the fifth clue you get one last orbit before the signal drops.</p>
+    ${ORBSVG}<button class="btn" data-act="sigStart">Acquire signal</button>`;
+  if(!s.done){
+    const t=sigElapsed(P), k=cluesShown(t);
+    const list=D.clues.slice(0,k).map((c,j)=>`<li class="${j===k-1?"new":""}"><b>${j+1}</b><span>${esc(c)}</span></li>`).join("")
+      + (k<5?`<li class="lock"><b>${k+1}</b><span>Next clue arrives on the next pass</span></li>`:"");
+    return kick+`<div class="sigtop"><h2>Mystery ${esc(D.type.toLowerCase())}</h2><span class="worth">Worth ${nf(Math.max(0,SIGPTS[k-1]-WRONG*s.wrong.length))}</span></div>
+      ${ORBSVG}
+      <div class="row" style="justify-content:space-between;margin:-4px 0 12px"><span class="unit" id="sigClock">${k<5?"Next clue in":"Signal lost in"} …</span><span class="unit">Clue ${k} of 5</span></div>
+      <ol class="clues">${list}</ol>
+      <form class="guess" id="sigForm"><input type="text" id="sigIn" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Your answer"><button class="btn" type="submit">Lock signal</button></form>
+      <div class="say ${T.msgCls}">${esc(T.msg)}</div>
+      ${s.wrong.length?`<div class="chips">${s.wrong.map(w=>`<span class="chip miss">✖ ${esc(w)}</span>`).join("")}</div>`:""}`;
+  }
+  const crew=rows.filter(r=>!r.me && r.sig!=null).map(r=>`${esc(r.player)} ${r.sig_lost?"lost the signal":`clue ${r.sig_clue+1}`}${r.sig_wrong?` (${r.sig_wrong} wrong)`:""}`).join(" · ");
+  return kick+`<h2>${esc(D.ans)}</h2>
+    <p class="lead">${s.lost?"Signal lost before you locked it.":`Locked on clue ${s.solvedAt+1} of 5${s.wrong.length?` after ${s.wrong.length} wrong guess${s.wrong.length>1?"es":""}`:""}.`}</p>
+    <ol class="clues">${D.clues.map((c,j)=>`<li class="${!s.lost&&j===s.solvedAt?"new":""}"><b>${j+1}</b><span>${esc(c)}</span></li>`).join("")}</ol>
+    <p class="crew">${crew?`Crew: ${crew}`:"You're the first in the crew to finish this one."}</p>
+    <div class="score"><span class="big">${nf(s.score)}</span><small>signal points</small></div>
+    <button class="btn" data-act="toLand">Begin landing</button>`;
+}
+
+function renderLand(P,rows,me){
+  const Q=M.landing, k=P.land.seen, q=Q[k], g=P.land.guesses[k];
+  const head=`<p class="kicker">Stage 3 · Landing · estimate ${k+1} of 3</p><div class="q">${esc(q.q)}</div>`;
+  if(g===undefined) return head+`<form class="guess" id="gForm"><input type="text" id="gIn" inputmode="decimal" autocomplete="off" placeholder="e.g. 25,000 or 2.5 million or 4e9"><span class="unit">${esc(q.u)}</span><button class="btn" type="submit">Lock guess</button></form><div class="preview" id="gPrev">Nobody knows these exactly. Reason it out.</div>`;
+  const e=err(g,q.a), ratio=10**Math.abs(e), pts=Math.round(qPts(g,q.a));
+  const verdict=Math.abs(e)<=Math.log10(1.25)?`<span class="grn">On target</span>`:e>0?`<span class="red">Redshifted · ${ratio.toFixed(ratio<10?1:0)}× too high</span>`:`<span class="blue">Blueshifted · ${ratio.toFixed(ratio<10?1:0)}× too low</span>`;
+  const pos=v=>50+50*Math.max(-1,Math.min(1,err(v,q.a)));
+  const crew=rows.filter(r=>!r.me && r.land_guesses && r.land_guesses[k]>0);
+  const marks=crew.map(r=>`<div class="mk" style="left:${pos(r.land_guesses[k])}%" title="${esc(r.player)}"><span>${esc(r.player[0]||"?")}</span></div>`).join("")+`<div class="mk me" style="left:${pos(g)}%"><span>You</span></div>`;
+  return head+`<div class="reveal">
+    <div class="verdict">${verdict}</div>
+    <p style="margin:6px 0 0">Answer: <b>${fmt(q.a)} ${esc(q.u)}</b> · You said ${fmt(g)} · <b>${pts}</b> pts</p>
+    <div class="spec">${marks}</div><div class="ends" style="margin-top:22px"><span>10× too low</span><span>exact</span><span>10× too high</span></div>
+    <p class="crew">${crew.length?`Crew: ${crew.map(r=>`${esc(r.player)} ${fmt(r.land_guesses[k])}`).join(" · ")}`:"No crew guesses yet. Check back later to see where everyone landed."}</p>
+    <p style="margin:12px 0 0">${esc(q.f)}</p>
+    <p class="src">Source: ${q.url?`<a href="${esc(q.url)}" target="_blank" rel="noopener">${esc(q.s)}</a>`:esc(q.s)}</p></div>
+    <div class="row" style="margin-top:16px"><button class="btn" data-act="nextQ">${k<2?"Next estimate":"Touch down"}</button></div>`;
+}
+
+function shareText(me){
+  const P=play(), f=Math.round((me.lift||0)/200);
+  const fire="🔥".repeat(f)+"⬛".repeat(5-f);
+  const sg=P.sig, sig=sg.wrong.map(()=>"✖️").join("")+(sg.lost?"💥 lost":`🟩 clue ${sg.solvedAt+1}/5`);
+  const land=P.land.guesses.map((g,k)=>sq(g,M.landing[k].a)).join("");
+  return `🛰️ Launch Window #${N} · ${nf(me.total)}/3,000\n🔥 Liftoff ${fire} ${nf(me.lift)}\n📡 Signal ${sig} ${nf(me.sig)}\n🛬 Landing ${land} ${nf(me.land)}\n${location.origin}${location.pathname}`;
+}
+function renderDone(P,rows,me){
+  const sorted=[...rows].sort((a,b)=>b.total-a.total), rank=sorted.findIndex(r=>r.me)+1;
+  const ord=n=>n+((n%100>=11&&n%100<=13)?"th":({1:"st",2:"nd",3:"rd"}[n%10]||"th"));
+  return `<p class="kicker">Mission #${N} complete</p><h2>Touchdown</h2>
+    <div class="score"><span class="big">${nf(me.total)}</span><small>of 3,000 · ${ord(rank)} of ${rows.length} in the crew so far</small></div>
+    <div class="totals"><div><b>${nf(me.lift)}</b><span>Liftoff · ${P.lift.answers.length} answers, ${me.uniq.length} solo</span></div><div><b>${nf(me.sig)}</b><span>Signal Lock · ${P.sig.lost?"signal lost":`clue ${P.sig.solvedAt+1} of 5`}</span></div><div><b>${nf(me.land)}</b><span>Landing · 3 estimates</span></div></div>
+    <h3 style="font-size:18px;margin:18px 0 8px">Share with the crew</h3>
+    <pre class="share" id="shareTxt">${esc(shareText(me))}</pre>
+    <div class="row"><button class="btn" data-act="copy">Copy result</button><span class="say" id="copySay"></span></div>
+    <h3 style="font-size:18px;margin:22px 0 4px">Your liftoff answers</h3>${liftResult(P,me)}
+    <p class="crew" style="margin-top:14px">Next mission launches at midnight Eastern.</p>`;
+}
+
+function renderBoard(rows){
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.tab===tab));
+  $("boardNote").textContent = `Crew “${ID.crew}”. Invite friends with this link: ${location.origin}${location.pathname}#${ID.crew}`;
+  if(tab==="today"){
+    const sorted=[...rows].filter(r=>r.lift!=null||r.sig!=null||r.land!=null||r.me).sort((a,b)=>b.total-a.total), c=v=>v==null?"—":nf(v);
+    $("boardBody").innerHTML=`<div class="tbl"><table><thead><tr><th>Pilot</th><th>Liftoff</th><th>Signal</th><th>Landing</th><th>Total</th></tr></thead><tbody>${sorted.map(r=>`<tr class="${r.me?"me":""}"><td>${esc(r.player)}</td><td>${c(r.lift)}</td><td>${c(r.sig)}</td><td>${c(r.land)}</td><td class="tot">${nf(r.total)}</td></tr>`).join("")}</tbody></table></div>`;
+    return;
+  }
+  const tot={}; const byM={};
+  PLAYS.forEach(p=>{ (byM[p.mission]=byM[p.mission]||[]).push(p); });
+  Object.entries(byM).forEach(([m,rs])=>{
+    const par=(+m===N && M) ? M.liftoff.par : (parsFor[m]||12);
+    scoreRows(rs,+m,par).forEach(r=>{ tot[r.player]=(tot[r.player]||0)+r.total; });
+  });
+  if(!(ID.name in tot)) tot[ID.name]=0;
+  const planets=[["Earth",0,12,"#5aa9ff"],["Moon",.04,7,"#d9cfff"],["Mars",.14,9,"#ff8f8f"],["Jupiter",.35,16,"#e8c2a0"],["Saturn",.55,14,"#ffd9f2"],["Uranus",.72,11,"#8fe3e8"],["Neptune",.86,11,"#6f7dff"],["Pluto",1,6,"#c9b3c0"]];
+  const X=f=>6+88*Math.min(1,f);
+  const pilots=Object.entries(tot).sort((a,b)=>b[1]-a[1]);
+  const month=new Date(Date.UTC(+DAY.slice(0,4),+DAY.slice(5,7)-1,1)).toLocaleDateString("en-US",{month:"long",timeZone:"UTC"});
+  $("boardBody").innerHTML=`<p class="crew" style="margin:0 0 8px">${esc(month)} season · first to Pluto (60,000) wins</p><div class="race"><div class="ln"></div>
+    ${planets.map(([n,f,sz,c],k)=>`<div class="pl" style="left:${X(f)}%"><i style="width:${sz}px;height:${sz}px;background:${c}"></i>${k%2===0||k===7?`<span>${n}</span>`:""}</div>`).join("")}
+    ${pilots.slice(0,9).map(([n,v],k)=>`<div class="ship" style="left:${X(v/PLUTO)}%;top:${8+(k%3)*22}px;color:${n===ID.name?"#ff5fb8":"#b4a9d6"}">${esc(n)}</div>`).join("")}
+  </div>
+  <div class="tbl" style="margin-top:10px"><table><thead><tr><th>Pilot</th><th>Season points</th><th>To Pluto</th></tr></thead><tbody>${pilots.map(([n,v])=>`<tr class="${n===ID.name?"me":""}"><td>${esc(n)}</td><td>${nf(v)}</td><td>${Math.min(100,Math.round(v/PLUTO*100))}%</td></tr>`).join("")}</tbody></table></div>`;
+}
+
+/* ---------------- liftoff actions ---------------- */
+function ignite(){
+  const P=play(); T.count=3; render();
+  const step=()=>{ T.count--; if(T.count>0){ render(); setTimeout(step,700); return; }
+    P.lift.started=true; P.lift.end=Date.now()+60000; saveProg(); T.liftMsg=""; render();
+    T.timer=setInterval(()=>{ const left=Math.max(0,(P.lift.end-Date.now())/1000);
+      const s=$("secs"), b=$("fuelBar"); if(s) s.textContent=Math.ceil(left); if(b) b.style.width=(left/60*100)+"%";
+      if(left<=0) endLift(); },200);
+  };
+  setTimeout(step,700);
+}
+function endLift(){ clearInterval(T.timer); T.timer=null; const P=play(); if(P.lift.done) return; P.lift.done=true; saveProg(); submit("lift",{answers:P.lift.answers}); render(); }
+function addAnswer(text){
+  const P=play(), c=match(LL,text);
+  if(!text.trim()) return;
+  if(!c){ T.liftMsg=`"${text.trim()}" isn't on the list`; T.liftCls="bad"; }
+  else if(P.lift.answers.includes(c)){ T.liftMsg=`Already have ${c}`; T.liftCls=""; }
+  else { P.lift.answers.push(c); T.liftMsg=`+ ${c}`; T.liftCls="good"; saveProg(); }
+  render();
+}
+
+/* ---------------- signal lock ---------------- */
+let sigRaf=null, lastK=0;
+function startSigLoop(){ if(sigRaf) return; lastK=cluesShown(sigElapsed(play())); sigRaf=requestAnimationFrame(sigTick); }
+function stopSigLoop(){ if(sigRaf) cancelAnimationFrame(sigRaf); sigRaf=null; }
+function finishSig(){ const s=play().sig; saveProg(); submit("sig",{clue:s.solvedAt,wrong:s.wrong.length,lost:s.lost,score:s.score}); }
+function sigTick(){
+  sigRaf=null;
+  const P=play(), s=P.sig; if(!s.started || s.done || stageOf(P)!==1) return;
+  const t=sigElapsed(P);
+  if(t>=6*ORBIT){ s.done=true; s.lost=true; s.score=0; T.msg=""; finishSig(); render(); return; }
+  const k=cluesShown(t);
+  if(k!==lastK){ lastK=k; render(); }
+  const ph=(t%ORBIT)/ORBIT, th=Math.PI/2+ph*2*Math.PI, A=-10*Math.PI/180;
+  const ex=165*Math.cos(th), ey=56*Math.sin(th), x=200+ex*Math.cos(A)-ey*Math.sin(A), y=108+ex*Math.sin(A)+ey*Math.cos(A);
+  const sat=$("sigSat"), pl=$("orbPlanet"), beam=$("beam"), sc=.82+.22*Math.sin(th);
+  if(sat){ sat.setAttribute("transform",`translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${sc.toFixed(3)})`); if(Math.sin(th)>=0) pl.after(sat); else pl.before(sat); }
+  if(beam){ const d=Math.hypot(x-200,y-108)||1; beam.setAttribute("x1",x.toFixed(1)); beam.setAttribute("y1",(y-10).toFixed(1)); beam.setAttribute("x2",(200+(x-200)*44/d).toFixed(1)); beam.setAttribute("y2",(108+(y-108)*44/d).toFixed(1)); beam.setAttribute("opacity",Math.max(0,1-(t%ORBIT)/1100).toFixed(2)); }
+  const clk=$("sigClock"); if(clk) clk.textContent=`${k<5?"Next clue in":"Signal lost in"} ${Math.ceil((ORBIT-(t%ORBIT))/1000)}s`;
+  sigRaf=requestAnimationFrame(sigTick);
+}
+function sigGuess(text){
+  const P=play(), s=P.sig; if(s.done || !text.trim()) return;
+  const k=cluesShown(sigElapsed(P));
+  if(match(SL,text)){ s.done=true; s.solvedAt=k-1; s.score=sigScore(k-1,s.wrong.length); T.msg=""; finishSig(); }
+  else if(s.wrong.some(w=>norm(w)===norm(text))){ T.msg="You already tried that."; T.msgCls=""; }
+  else { s.wrong.push(text.trim().slice(0,40)); T.msg=`Negative, not ${text.trim().slice(0,40)}. −${WRONG}`; T.msgCls="bad"; }
+  saveProg(); render();
+}
+
+/* ---------------- events ---------------- */
+document.addEventListener("click",e=>{
+  const t=e.target.closest("[data-act],[data-tab]"); if(!t) return;
+  if(t.dataset.tab){ tab=t.dataset.tab; render(); return; }
+  const a=t.dataset.act;
+  if(a==="switch"){ stopSigLoop(); view="join"; T.msg=""; render(); return; }
+  if(view!=="game") return;
+  const P=play();
+  if(a==="ignite") ignite();
+  if(a==="toNav"){ P.lift.ack=true; T.liftMsg=""; saveProg(); render(); window.scrollTo({top:0}); }
+  if(a==="sigStart"){ P.sig.started=true; P.sig.start=Date.now(); T.msg=""; saveProg(); render(); const g=$("sigIn"); if(g) g.focus({preventScroll:true}); }
+  if(a==="toLand"){ P.sig.ack=true; T.msg=""; saveProg(); render(); window.scrollTo({top:0}); }
+  if(a==="nextQ"){ P.land.seen++; saveProg(); if(P.land.seen>=3) submit("land",{guesses:P.land.guesses,score:landScore(M.landing,P.land.guesses)}); render(); window.scrollTo({top:0,behavior:"smooth"}); }
+  if(a==="copy"){
+    const txt=shareText(board().find(r=>r.me)), say=$("copySay");
+    navigator.clipboard.writeText(txt).then(()=>{ say.textContent="Copied. Paste it in the group chat."; },()=>{
+      const r=document.createRange(); r.selectNodeContents($("shareTxt")); const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      say.textContent="Selected. Press Ctrl+C or Cmd+C to copy."; });
+  }
+});
+document.addEventListener("submit",async e=>{
+  e.preventDefault();
+  if(e.target.id==="joinForm"){
+    const crew=$("crewIn").value.trim().toLowerCase(), name=$("nameIn").value.trim().slice(0,16);
+    if(crew.length<3){ $("joinSay").textContent="Crew codes are at least 3 characters."; return; }
+    if(!name){ $("joinSay").textContent="Pick a callsign."; return; }
+    $("joinSay").textContent="Checking…";
+    try{
+      const ok=await rpc("claim_callsign",{p_crew:crew,p_player:name,p_token:ID.token});
+      if(!ok){ $("joinSay").textContent="That callsign is taken in this crew. Try another."; return; }
+    }catch(err){ $("joinSay").textContent="Couldn't reach mission control. Try again."; return; }
+    if(crew!==ID.crew || name!==ID.name){ PROG={}; saveProg(); }
+    ID.crew=crew; ID.name=name; store("lw:id",ID);
+    history.replaceState(null,"","#"+encodeURIComponent(crew));
+    T.msg=""; boot(); return;
+  }
+  if(e.target.id==="liftForm"){ const inp=$("liftIn"); addAnswer(inp.value); const n=$("liftIn"); if(n){ n.value=""; n.focus(); } }
+  if(e.target.id==="sigForm"){ const v=$("sigIn").value; $("sigIn").value=""; sigGuess(v); const n=$("sigIn"); if(n) n.focus({preventScroll:true}); }
+  if(e.target.id==="gForm"){
+    const v=parseNum($("gIn").value);
+    if(!(v>0)){ $("gPrev").textContent="Enter a positive number, like 3500, 2.5 million or 4e9."; return; }
+    const P=play(); P.land.guesses[P.land.seen]=v; saveProg(); render();
+  }
+});
+document.addEventListener("input",e=>{
+  if(e.target.id==="gIn"){ const v=parseNum(e.target.value); $("gPrev").innerHTML=e.target.value.trim()?(v>0?"= "+fmt(v):"Not a number yet"):"Nobody knows these exactly. Reason it out."; }
+});
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && view==="game"){ if(nyToday()!==DAY) boot(); else refreshPlays().then(()=>render()); } });
+
+/* ---------------- logo: satellite orbit ---------------- */
+(function(){
+  const btn=$("logoBtn"), sat=$("sat"), planet=$("planet"), ping=$("ping");
+  const A=-25*Math.PI/180, RX=25, RY=9; let busy=false;
+  const pt=th=>{ const x=RX*Math.cos(th), y=RY*Math.sin(th); return [32+x*Math.cos(A)-y*Math.sin(A), 32+x*Math.sin(A)+y*Math.cos(A)]; };
+  const ease=t=>t<.5?2*t*t:1-((-2*t+2)**2)/2;
+  const doPing=()=>{ ping.classList.remove("go"); void ping.getBBox(); ping.classList.add("go"); };
+  btn.addEventListener("click",()=>{
+    if(busy) return;
+    if(matchMedia("(prefers-reduced-motion: reduce)").matches){ doPing(); return; }
+    busy=true; const t0=performance.now(), IN=350, ORB=2600, OUT=400, LOOPS=2, [sx,sy]=pt(0);
+    const frame=now=>{
+      const t=now-t0; let x,y,s,po,front=true;
+      if(t<IN){ const k=ease(t/IN); x=32+(sx-32)*k; y=32+(sy-32)*k; s=1-.62*k; po=k; }
+      else if(t<IN+ORB){ const th=(t-IN)/ORB*LOOPS*2*Math.PI; [x,y]=pt(th); s=.38+.08*Math.sin(th); po=1; front=Math.sin(th)>=0; }
+      else if(t<IN+ORB+OUT){ const k=ease((t-IN-ORB)/OUT); x=sx+(32-sx)*k; y=sy+(32-sy)*k; s=.38+.62*k; po=1-k; }
+      else { sat.setAttribute("transform","translate(32 32)"); planet.setAttribute("opacity","0"); planet.after(sat); busy=false; doPing(); return; }
+      sat.setAttribute("transform",`translate(${x.toFixed(2)} ${y.toFixed(2)}) scale(${s.toFixed(3)})`);
+      planet.setAttribute("opacity",po.toFixed(2));
+      if(front) planet.after(sat); else planet.before(sat);
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  });
+})();
+
+/* ---------------- star backdrop ---------------- */
+(function(){
+  const r=rng("backdrop"), W=1600, H=1000; let s="";
+  for(let k=0;k<180;k++){ const o=(.25+r()*.6).toFixed(2); s+=`<circle cx="${(r()*W).toFixed(0)}" cy="${(r()*H).toFixed(0)}" r="${(r()*1.3+.3).toFixed(2)}" fill="${["#fff","#fff","#ffc2e6","#c9b3ff","#a9d2ff"][Math.floor(r()*5)]}" opacity="${o}"/>`; }
+  const sky=$("sky"); sky.setAttribute("viewBox",`0 0 ${W} ${H}`); sky.setAttribute("preserveAspectRatio","xMidYMid slice"); sky.innerHTML=s;
+})();
+
+/* ---------------- boot ---------------- */
+async function boot(){
+  stopSigLoop(); clearInterval(T.timer); T.timer=null; T.count=0;
+  if(CONFIG.url.startsWith("__")){ view="setup"; render(); return; }
+  if(!ID.crew || !ID.name){ view="join"; render(); return; }
+  if(location.hash.slice(1)!==encodeURIComponent(ID.crew)) history.replaceState(null,"","#"+encodeURIComponent(ID.crew));
+  DAY=nyToday(); N=numOf(DAY); view="loading"; render();
+  try{
+    M=await getMission(DAY);
+    if(!M){ view="nomission"; await refreshPlays(); render(); return; }
+    LL=buildList(M.liftoff.list); SL=buildList(M.signal.alias);
+    await flush(); await refreshPlays(); restoreFromServer();
+    Object.values(PROG).forEach(P=>{ if(P.lift && P.lift.started && !P.lift.done){ P.lift.done=true; } });
+    const P=play(); if(P.lift.done && !PENDING.some(p=>p.stage==="lift") && !PLAYS.some(p=>p.mission===N&&p.player===ID.name&&p.lift_answers)) submit("lift",{answers:P.lift.answers});
+    view="game"; render();
+  }catch(e){ view="error"; errMsg=String(e.message||e).slice(0,160); render(); }
+}
+boot();
+setInterval(()=>{ if(view==="game" && !document.hidden){ if(nyToday()!==DAY) boot(); else refreshPlays().then(()=>{ const st=stageOf(play()); if(st!==0 || !play().lift.started || play().lift.done) render(); }); } }, 60000);
+}
+
+</script>
+</body>
+</html>
